@@ -1,5 +1,5 @@
 import { LatLon, bearing, crabHeading, groundVelocity, haversine, moveBy } from './geo';
-import { Circle, insideAny, planRoute, routeHits } from './shared/planner';
+import { Circle, insideAny, planRoute, routeHits } from './planner';
 export type Status = 'idle' | 'flying' | 'paused' | 'stopped' | 'hold' | 'arrived';
 export type ScenarioId = 'A' | 'B' | 'C' | 'D';
 export const STATUS_HY: Record<Status, string> = { idle: 'Սպասում', flying: 'Թռիչքում', paused: 'Դադար', stopped: 'Վթարային կանգ', hold: 'Անվտանգ սպասում (hold)', arrived: 'Ժամանել է' };
