@@ -2,7 +2,7 @@ import { useEffect, useRef } from 'react';
 import * as THREE from 'three';
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js';
 import { Sim } from './sim';
-import { toLocalKm, windVector } from './shared/geo';
+import { toLocalKm, windVector } from './geo';
 
 const ALT = 1 / 200; // 1 scene unit = 1 km horizontally; altitude exaggerated (1 unit = 200 m)
 export default function Scene3D({ sim }: { sim: Sim }) {
