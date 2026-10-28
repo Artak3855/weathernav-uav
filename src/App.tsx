@@ -13,8 +13,7 @@ const f = (v: number | null, d = 1) => (v === null ? '—' : v.toFixed(d));
 const t = {
   hy: {
     title: "WeatherNav UAV սիմուլյատոր",
-    weather: "Եղանակ (Մեկնարկային կետ)",
-    destWeather: "Եղանակ (Նպատակակետ)",
+    weather: "Եղանակ",
     realApi: "իրական API՝ Open-Meteo",
     demo: "Demo ռեժիմ",
     disableDemo: "Անջատել demo",
@@ -60,8 +59,7 @@ const t = {
   },
   en: {
     title: "WeatherNav UAV Simulator",
-    weather: "Weather (Start Point)",
-    destWeather: "Weather (Destination)",
+    weather: "Weather",
     realApi: "Live API: Open-Meteo",
     demo: "Demo Mode",
     disableDemo: "Disable Demo",
@@ -114,7 +112,6 @@ export default function App() {
   const simRef = useRef(new Sim()); const sim = simRef.current;
   const [, force] = useState(0);
   const [wx, setWx] = useState<Wx | null>(null);
-  const [destWx, setDestWx] = useState<Wx | null>(null);
   const [apiErr, setApiErr] = useState<string | null>(null);
   const [scenario, setScenario] = useState<ScenarioId>('A');
   const [demo, setDemo] = useState(false);
@@ -122,7 +119,6 @@ export default function App() {
   const [scale, setScale] = useState(20);
   const [th, setTh] = useState<Thresholds>({ maxWind: 15, cautionWind: 10, humidity: 85, staleSec: 300 });
 
-  // Snapshots & Comparison state
   const [snapshots, setSnapshots] = useState<Snapshot[]>([]);
   const [selectedSnapIds, setSelectedSnapIds] = useState<string[]>([]);
   const [chartMetric, setChartMetric] = useState<'wind' | 'temp' | 'humidity'>('wind');
@@ -142,52 +138,36 @@ export default function App() {
     return () => cancelAnimationFrame(raf);
   }, [sim]);
 
-  // Pull weather for Start and Destination, plus en-route check if flying
   useEffect(() => {
     const pull = async () => {
       let currentWx: Wx;
-      let currentDestWx: Wx;
-
       if (demo) {
         currentWx = { temperature: 18, humidity: 55, windSpeed: 6, windDirection: 270, providerTime: null, fetchedAt: new Date().toISOString() };
-        currentDestWx = { temperature: 16, humidity: 60, windSpeed: 8, windDirection: 280, providerTime: null, fetchedAt: new Date().toISOString() };
-        setWx(currentWx);
-        setDestWx(currentDestWx);
-        setApiErr(null);
+        setWx(currentWx); setApiErr(null);
       } else if (scenRef.current === 'D') {
         setApiErr(lang === 'hy' ? 'API խափանում (սիմուլյացիա)' : 'API Outage (simulation)');
         return;
       } else {
         try {
-          const [rStart, rDest] = await Promise.all([
-            fetch(`/api/weather?latitude=${sim.start.lat}&longitude=${sim.start.lon}`),
-            fetch(`/api/weather?latitude=${sim.dest.lat}&longitude=${sim.dest.lon}`)
-          ]);
-          if (!rStart.ok || !rDest.ok) throw new Error('HTTP error in weather API');
-          currentWx = await rStart.json();
-          currentDestWx = await rDest.json();
-          setWx(currentWx);
-          setDestWx(currentDestWx);
-          setApiErr(null);
+          const r = await fetch(`/api/weather?latitude=${sim.start.lat}&longitude=${sim.start.lon}`); if (!r.ok) throw new Error('HTTP ' + r.status);
+          currentWx = await r.json();
+          setWx(currentWx); setApiErr(null);
 
-          // En-route check: if drone is flying, check weather at current drone position as well
           if (sim.status === 'flying') {
             const rPos = await fetch(`/api/weather?latitude=${sim.pos.lat}&longitude=${sim.pos.lon}`);
             if (rPos.ok) {
               const posWx: Wx = await rPos.json();
               sim.note(lang === 'hy' 
-                ? `Տեղային եղանակ (դիրք՝ ${sim.pos.lat.toFixed(2)}, ${sim.pos.lon.toFixed(2)}): Քամի՝ ${f(posWx.windSpeed)}մ/վ, Ջերմ.` 
+                ? `Տեղային եղանակ (դիրք՝ ${sim.pos.lat.toFixed(2)}, ${sim.pos.lon.toFixed(2)}): Քամի՝ ${f(posWx.windSpeed)}մ/վ` 
                 : `En-route weather (pos: ${sim.pos.lat.toFixed(2)}, ${sim.pos.lon.toFixed(2)}): Wind ${f(posWx.windSpeed)}m/s`);
             }
           }
         } catch (e) {
-          setApiErr((e as Error).message);
-          sim.note(lang === 'hy' ? 'API սխալ. օգտագործվում է վերջին հաջող պատասխանը։' : 'API error. Using last successful response.');
+          setApiErr((e as Error).message); sim.note(lang === 'hy' ? 'API սխալ. օգտագործվում է վերջին հաջող պատասխանը։' : 'API error. Using last successful response.');
           return;
         }
       }
 
-      // Snapshot generation for start weather
       const canvas = document.createElement('canvas');
       canvas.width = 250; canvas.height = 140;
       const ctx = canvas.getContext('2d');
@@ -285,32 +265,22 @@ export default function App() {
       </div>
     </header>
     <div className="grid">
-      {/* Start Point Weather */}
+      {/* Weather Card */}
       <section className="card"><h3>{dict.weather} <span className="tag real">{demo ? (lang === 'hy' ? 'ՊԱՏԿԵՐԱՅԻՆ ՏՎՅԱԼՆԵՐ (demo)' : 'DEMO DATA') : dict.realApi}</span></h3>
         <table><tbody>
-          <tr><td>{lang === 'hy' ? 'Ջերմաստիճան' : 'Temperature'}</td><td>{f(wx?.temperature ?? null)} °C</td></tr>
+          <tr><td title={lang === 'hy' ? 'Ջերմաստիճան 2 մ բարձրության վրա' : 'Temperature at 2m'}>{lang === 'hy' ? 'Ջերմաստիճան' : 'Temperature'}</td><td>{f(wx?.temperature ?? null)} °C</td></tr>
           <tr><td>{lang === 'hy' ? 'Հարաբերական խոնավություն' : 'Humidity'}</td><td>{f(wx?.humidity ?? null, 0)} %</td></tr>
-          <tr><td>{lang === 'hy' ? 'Քամու արագություն' : 'Wind Speed'}</td><td>{f(wx?.windSpeed ?? null)} {lang === 'hy' ? 'մ/վ' : 'm/s'}</td></tr>
-          <tr><td>{lang === 'hy' ? 'Քամու ուղղություն' : 'Wind Direction'}</td><td>{f(wx?.windDirection ?? null, 0)}°</td></tr>
-          <tr><td>{lang === 'hy' ? 'Վերջին հաջող ստացում' : 'Last Fetch'}</td><td>{wx ? new Date(wx.fetchedAt).toLocaleTimeString() : '—'}</td></tr>
+          <tr><td title={lang === 'hy' ? '10 մ բարձրության վրա' : 'At 10m'}>{lang === 'hy' ? 'Քամու արագություն' : 'Wind Speed'}</td><td>{f(wx?.windSpeed ?? null)} {lang === 'hy' ? 'մ/վ' : 'm/s'}</td></tr>
+          <tr><td title={lang === 'hy' ? 'Այն կողմը, որտեղից է փչում քամին' : 'Wind direction'}>{lang === 'hy' ? 'Քամու ուղղություն (որտեղից)' : 'Wind Direction'}</td><td>{f(wx?.windDirection ?? null, 0)}°</td></tr>
+          <tr><td>{lang === 'hy' ? 'Դիտարկման/կանխատեսման ժամ' : 'Provider Time'}</td><td>{wx?.providerTime ?? '—'}</td></tr>
+          <tr><td>{lang === 'hy' ? 'Վերջին հաջող ստացում' : 'Last Fetch'}</td><td>{wx ? new Date(wx.fetchedAt).toLocaleTimeString() : '—'} {ageSec !== null && ageSec > th.staleSec && <b className="high">({lang === 'hy' ? 'հնացած' : 'stale'})</b>}</td></tr>
         </tbody></table>
         {apiErr && <p className="high">⚠ {apiErr}</p>}
         <label>{dict.refresh}<input value={refreshSec} onChange={e => setRefreshSec(Math.max(15, num(e.target.value, 60)))} /></label>
         <button className="alt" onClick={() => setDemo(!demo)}>{demo ? dict.disableDemo : dict.demo}</button>
       </section>
 
-      {/* Destination Point Weather */}
-      <section className="card"><h3>{dict.destWeather} <span className="tag real">{dict.realApi}</span></h3>
-        <table><tbody>
-          <tr><td>{lang === 'hy' ? 'Ջերմաստիճան' : 'Temperature'}</td><td>{f(destWx?.temperature ?? null)} °C</td></tr>
-          <tr><td>{lang === 'hy' ? 'Հարաբերական խոնավություն' : 'Humidity'}</td><td>{f(destWx?.humidity ?? null, 0)} %</td></tr>
-          <tr><td>{lang === 'hy' ? 'Քամու արագություն' : 'Wind Speed'}</td><td>{f(destWx?.windSpeed ?? null)} {lang === 'hy' ? 'մ/վ' : 'm/s'}</td></tr>
-          <tr><td>{lang === 'hy' ? 'Քամու ուղղություն' : 'Wind Direction'}</td><td>{f(destWx?.windDirection ?? null, 0)}°</td></tr>
-          <tr><td>{lang === 'hy' ? 'Կոորդինատներ' : 'Coordinates'}</td><td>{sim.dest.lat.toFixed(3)}, {sim.dest.lon.toFixed(3)}</td></tr>
-        </tbody></table>
-        <p className="note">{lang === 'hy' ? 'Նպատակակետի առանձին եղանակային գրադիենտի գնահատում։' : 'Destination specific weather gradient evaluation.'}</p>
-      </section>
-
+      {/* Risk Assessment Card */}
       <section className="card"><h3>{dict.risk} <span className="tag">{dict.riskSub}</span></h3>
         <b className={risk.level}>{currentLevelText}</b><ul>{risk.reasons.map((r, i) => <li key={i}>{r}</li>)}</ul>
         <label>{dict.windLimit}<input value={th.maxWind} onChange={e => setTh({ ...th, maxWind: num(e.target.value, 15) })} /></label>
@@ -319,6 +289,7 @@ export default function App() {
         <p className="note">{dict.noteTemp}</p>
       </section>
 
+      {/* Telemetry Card */}
       <section className="card"><h3>{dict.telemetry} <span className="tag sim">{dict.simTag}</span></h3>
         <table><tbody>
           <tr><td>{dict.pos}</td><td>{sim.pos.lat.toFixed(4)}, {sim.pos.lon.toFixed(4)}</td></tr>
@@ -332,6 +303,7 @@ export default function App() {
         <label>{dict.timeScale}<input value={scale} onChange={e => setScale(Math.max(1, num(e.target.value, 20)))} /></label>
       </section>
 
+      {/* Control Card */}
       <section className="card"><h3>{dict.control}</h3>
         <button onClick={() => sim.begin()}>{dict.start}</button><button className="alt" onClick={() => sim.pause()}>{dict.pause}</button>
         <button className="alt" onClick={() => { sim.reset(); setScenario('A'); }}>{dict.reset}</button><button className="danger" onClick={() => sim.emergencyStop()}>{dict.emergency}</button>
@@ -339,8 +311,11 @@ export default function App() {
           {dict.scenarios[id]}</button>)}</div>
       </section>
 
+      {/* Map Card */}
       <section className="card"><h3>{dict.map} <span className="tag sim">{dict.simTag}</span></h3><div className="map" ref={mapEl} />
         <p className="note">{dict.mapDesc}</p></section>
+
+      {/* 3D View Card */}
       <section className="card"><h3>{dict.scene3D} <span className="tag sim">{dict.simTag}</span></h3><Scene3D sim={sim} /></section>
       
       {/* Event Log */}
