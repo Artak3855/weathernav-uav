@@ -32,7 +32,7 @@ export class Sim {
     this.note('Սկզբնական կետը փոխվեց։');
   }
 
-  // Ստանալ ընթացիկ կետում գործող քամու վեկտորային պարամետրերը (օգտակար է քարտեզի վրա սլաքներ գծելիս)
+  // Ստանալ ընթացիկ կետում գործող քամու վեկտորային պարամետրերը
   getCurrentWindVector() {
     const zone = insideAny(this.pos, this.hazards);
     return zone?.windSpeed !== undefined ? { speed: zone.windSpeed, from: this.wind.from } : this.wind;
