@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
 import { Sim, STATUS_HY, ScenarioId } from './sim';
-import { assess, LEVEL_HY, Thresholds } from './shared/hazard';
+import { assess, LEVEL_HY, Thresholds } from './hazard';
 import Scene3D from './Scene3D';
 
 interface Wx { temperature: number | null; humidity: number | null; windSpeed: number | null; windDirection: number | null; providerTime: string | null; fetchedAt: string }
