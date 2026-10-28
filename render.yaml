@@ -1,0 +1,10 @@
+services:
+  - type: web
+    name: weathernav-uav-simulator
+    runtime: node
+    buildCommand: npm install --include=dev && npm run build
+    startCommand: npm start
+    healthCheckPath: /api/health
+    envVars:
+      - key: NODE_VERSION
+        value: 20

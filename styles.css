@@ -1,0 +1,10 @@
+*{box-sizing:border-box}body{margin:0;background:#0b1220;color:#d6e2f0;font-family:system-ui,'Noto Sans Armenian',sans-serif}
+header{padding:10px 16px;background:#111c30;display:flex;justify-content:space-between;align-items:center}
+.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(340px,1fr));gap:12px;padding:12px}
+.card{background:#111c30;border:1px solid #223352;border-radius:8px;padding:12px}.card h3{margin:0 0 8px;font-size:15px}
+.tag{font-size:11px;padding:2px 6px;border-radius:4px;background:#223352;margin-left:6px}.tag.real{background:#0f5132}.tag.sim{background:#664d03}
+.normal{color:#4ade80}.caution{color:#facc15}.high{color:#f87171}.unknown{color:#9ca3af}
+button{background:#1d4ed8;color:#fff;border:0;border-radius:5px;padding:6px 10px;margin:2px;cursor:pointer}button.danger{background:#b91c1c}button.alt{background:#334155}
+input{width:70px;background:#0b1220;color:#d6e2f0;border:1px solid #334155;border-radius:4px;padding:3px}label{display:inline-block;margin:3px 8px 3px 0;font-size:13px}
+.map,.scene{height:340px;border-radius:6px;position:relative}.log{max-height:180px;overflow:auto;font-size:12px}
+table td{padding:2px 8px 2px 0;font-size:13px}.note{font-size:11px;color:#94a3b8}

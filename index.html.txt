@@ -1,0 +1,258 @@
+<!DOCTYPE html>
+<html lang="hy">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Ռադիոհղման և Ֆրենելի գոտու հաշվիչ (Radio Link & Fresnel Calculator)</title>
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="bg-slate-900 text-slate-100 min-h-screen font-sans p-4 md:p-8">
+    <div class="max-w-6xl mx-auto">
+        <!-- Header -->
+        <header class="mb-8 text-center">
+            <h1 class="text-3xl md:text-4xl font-extrabold text-cyan-400 mb-2">Ռադիոհղման (Link Budget) & Ֆրենելի գոտու Հաշվիչ</h1>
+            <p class="text-slate-400">Պրոֆեսիոնալ գործիք ռադիոինժեներների համար</p>
+        </header>
+
+        <div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
+            <!-- Inputs Panel -->
+            <div class="bg-slate-800 p-6 rounded-2xl shadow-xl border border-slate-700 lg:col-span-1 space-y-4">
+                <h2 class="text-xl font-bold text-cyan-300 border-b border-slate-700 pb-2">Մուտքային տվյալներ</h2>
+
+                <div>
+                    <label class="block text-sm font-medium mb-1">Հաճախություն ($f$, ԳՀց)</label>
+                    <input type="number" id="freq" value="5.8" step="0.1" class="w-full bg-slate-900 border border-slate-600 rounded-lg p-2.5 text-white focus:outline-none focus:border-cyan-400">
+                </div>
+
+                <div class="grid grid-cols-2 gap-2">
+                    <div>
+                        <label class="block text-sm font-medium mb-1">Հեռավոր. $d_1$ (կմ)</label>
+                        <input type="number" id="d1" value="5" step="0.1" class="w-full bg-slate-900 border border-slate-600 rounded-lg p-2.5 text-white focus:outline-none focus:border-cyan-400">
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium mb-1">Հեռավոր. $d_2$ (կմ)</label>
+                        <input type="number" id="d2" value="5" step="0.1" class="w-full bg-slate-900 border border-slate-600 rounded-lg p-2.5 text-white focus:outline-none focus:border-cyan-400">
+                    </div>
+                </div>
+
+                <div>
+                    <label class="block text-sm font-medium mb-1">Խոչընդոտի իրական բարձրություն ($h_{obs}$, մ)</label>
+                    <input type="number" id="h_obs" value="3" step="0.5" class="w-full bg-slate-900 border border-slate-600 rounded-lg p-2.5 text-white focus:outline-none focus:border-cyan-400">
+                </div>
+
+                <hr class="border-slate-700 my-2">
+
+                <div>
+                    <label class="block text-sm font-medium mb-1">Հաղորդիչի հզորություն ($P_{tx}$, dBm)</label>
+                    <input type="number" id="ptx" value="20" step="1" class="w-full bg-slate-900 border border-slate-600 rounded-lg p-2.5 text-white focus:outline-none focus:border-cyan-400">
+                </div>
+
+                <div class="grid grid-cols-2 gap-2">
+                    <div>
+                        <label class="block text-sm font-medium mb-1">Tx Ալեհ. շահույթ ($G_{tx}$, dBi)</label>
+                        <input type="number" id="gtx" value="25" step="0.5" class="w-full bg-slate-900 border border-slate-600 rounded-lg p-2.5 text-white focus:outline-none focus:border-cyan-400">
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium mb-1">Rx Ալեհ. շահույթ ($G_{rx}$, dBi)</label>
+                        <input type="number" id="grx" value="25" step="0.5" class="w-full bg-slate-900 border border-slate-600 rounded-lg p-2.5 text-white focus:outline-none focus:border-cyan-400">
+                    </div>
+                </div>
+
+                <div>
+                    <label class="block text-sm font-medium mb-1">Մալուխի/Կորուստներ ($L_{loss}$, dB)</label>
+                    <input type="number" id="losses" value="2" step="0.5" class="w-full bg-slate-900 border border-slate-600 rounded-lg p-2.5 text-white focus:outline-none focus:border-cyan-400">
+                </div>
+
+                <div>
+                    <label class="block text-sm font-medium mb-1">Ընդունիչի զգայունություն (Sensitivity, dBm)</label>
+                    <input type="number" id="sensitivity" value="-75" step="1" class="w-full bg-slate-900 border border-slate-600 rounded-lg p-2.5 text-white focus:outline-none focus:border-cyan-400">
+                </div>
+
+                <button onclick="calculateAll()" class="w-full bg-cyan-500 hover:bg-cyan-600 text-slate-950 font-bold py-3 rounded-lg transition duration-200 shadow-lg mt-4">
+                    Հաշվարկել
+                </button>
+            </div>
+
+            <!-- Results & Visualization Panel -->
+            <div class="space-y-6 lg:col-span-2">
+                <!-- Fresnel & Obstacle Card -->
+                <div class="bg-slate-800 p-6 rounded-2xl shadow-xl border border-slate-700">
+                    <h2 class="text-xl font-bold text-cyan-300 mb-4">Ֆրենելի 1-ին գոտի և Խոչընդոտ</h2>
+                    
+                    <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
+                        <div class="bg-slate-900 p-4 rounded-xl border border-slate-700">
+                            <span class="text-xs text-slate-400 block">Ֆրենելի առավել. շառավիղ ($R_1$)</span>
+                            <span id="res_r1" class="text-2xl font-extrabold text-cyan-400">0.00 մ</span>
+                        </div>
+                        <div class="bg-slate-900 p-4 rounded-xl border border-slate-700">
+                            <span class="text-xs text-slate-400 block">Թույլատրելի 60% շեմ</span>
+                            <span id="res_60" class="text-2xl font-extrabold text-amber-400">0.00 մ</span>
+                        </div>
+                        <div class="bg-slate-900 p-4 rounded-xl border border-slate-700">
+                            <span class="text-xs text-slate-400 block">Խոչընդոտի կարգավիճակ</span>
+                            <span id="res_obs_status" class="text-lg font-extrabold text-green-400">-</span>
+                        </div>
+                    </div>
+
+                    <!-- Canvas Visualization -->
+                    <div class="w-full bg-slate-900 rounded-xl border border-slate-700 p-2 flex justify-center">
+                        <canvas id="fresnelCanvas" width="600" height="200" class="w-full max-w-full h-auto"></canvas>
+                    </div>
+                </div>
+
+                <!-- Link Budget Card -->
+                <div class="bg-slate-800 p-6 rounded-2xl shadow-xl border border-slate-700">
+                    <h2 class="text-xl font-bold text-cyan-300 mb-4">Link Budget & Margin արդյունքներ</h2>
+                    
+                    <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                        <div class="bg-slate-900 p-4 rounded-xl border border-slate-700">
+                            <span class="text-xs text-slate-400 block">Ազատ տարած. մարում (FSPL)</span>
+                            <span id="res_fspl" class="text-xl font-extrabold text-cyan-400">0.00 dB</span>
+                        </div>
+                        <div class="bg-slate-900 p-4 rounded-xl border border-slate-700">
+                            <span class="text-xs text-slate-400 block">Ստացվող հզորություն ($P_{rx}$)</span>
+                            <span id="res_prx" class="text-xl font-extrabold text-cyan-400">0.00 dBm</span>
+                        </div>
+                        <div class="bg-slate-900 p-4 rounded-xl border border-slate-700">
+                            <span class="text-xs text-slate-400 block">Link Margin (Պահուստ)</span>
+                            <span id="res_margin" class="text-2xl font-extrabold text-green-400">0.00 dB</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- JavaScript Լոգիկա -->
+    <script>
+        function calculateAll() {
+            // Կարդում ենք մուտքային արժեքները
+            const f = parseFloat(document.getElementById('freq').value); // ԳՀց
+            const d1 = parseFloat(document.getElementById('d1').value); // կմ
+            const d2 = parseFloat(document.getElementById('d2').value); // կմ
+            const h_obs = parseFloat(document.getElementById('h_obs').value); // մետր
+            
+            const ptx = parseFloat(document.getElementById('ptx').value);
+            const gtx = parseFloat(document.getElementById('gtx').value);
+            const grx = parseFloat(document.getElementById('grx').value);
+            const losses = parseFloat(document.getElementById('losses').value);
+            const sensitivity = parseFloat(document.getElementById('sensitivity').value);
+
+            const totalD = d1 + d2; // Ընդհանուր հեռավորություն կմ
+
+            // 1. Ֆրենելի առաջին գոտու շառավիղը խոչընդոտի կետում (մետրերով)
+            // R1 = 17.32 * sqrt( (d1 * d2) / (f * (d1 + d2)) )
+            let r1 = 17.32 * Math.sqrt((d1 * d2) / (f * totalD));
+            let threshold60 = 0.6 * r1;
+
+            document.getElementById('res_r1').innerText = r1.toFixed(2) + ' մ';
+            document.getElementById('res_60').innerText = threshold60.toFixed(2) + ' մ';
+
+            let obsStatusElem = document.getElementById('res_obs_status');
+            if (h_obs <= threshold60) {
+                obsStatusElem.innerText = 'Անվտանգ (Կապն աշխատելու է)';
+                obsStatusElem.className = 'text-lg font-extrabold text-green-400';
+            } else if (h_obs <= r1) {
+                obsStatusElem.innerText = 'Զգուշացում (Մտել է 60%-ի մեջ)';
+                obsStatusElem.className = 'text-lg font-extrabold text-amber-400';
+            } else {
+                obsStatusElem.innerText = 'Վտանգավոր է (Խոչընդոտում է կապին)';
+                obsStatusElem.className = 'text-lg font-extrabold text-red-400';
+            }
+
+            // 2. Link Budget Հաշվարկ
+            // FSPL (dB) = 20*log10(d_km) + 20*log10(f_GHz) + 92.45
+            let fspl = 20 * Math.log10(totalD) + 20 * Math.log10(f) + 92.45;
+            
+            // Prx = Ptx + Gtx + Grx - FSPL - losses
+            let prx = ptx + gtx + grx - fspl - losses;
+
+            // Link Margin = Prx - Sensitivity
+            let linkMargin = prx - sensitivity;
+
+            document.getElementById('res_fspl').innerText = fspl.toFixed(2) + ' dB';
+            document.getElementById('res_prx').innerText = prx.toFixed(2) + ' dBm';
+            
+            let marginElem = document.getElementById('res_margin');
+            marginElem.innerText = linkMargin.toFixed(2) + ' dB';
+            if (linkMargin >= 10) {
+                marginElem.className = 'text-2xl font-extrabold text-green-400';
+            } else if (linkMargin >= 0) {
+                marginElem.className = 'text-2xl font-extrabold text-amber-400';
+            } else {
+                marginElem.className = 'text-2xl font-extrabold text-red-400';
+            }
+
+            // Վիզուալիզացիա Canvas-ի վրա
+            drawFresnel(d1, d2, r1, h_obs);
+        }
+
+        function drawFresnel(d1, d2, r1, h_obs) {
+            const canvas = document.getElementById('fresnelCanvas');
+            const ctx = canvas.getContext('2d');
+            const width = canvas.width;
+            const height = canvas.height;
+
+            ctx.clearRect(0, 0, width, height);
+
+            let startX = 50;
+            let endX = width - 50;
+            let centerY = height / 2;
+            let maxRadiusPx = 70; // Էլիպսի նկարվող առավելագույն բարձրությունը պիքսելներով
+
+            // Նկարում ենք Ուղղակի տեսանելիության գիծը (LoS)
+            ctx.beginPath();
+            ctx.strokeStyle = '#94a3b8';
+            ctx.setLineDash([4, 4]);
+            ctx.moveTo(startX, centerY);
+            ctx.lineTo(endX, centerY);
+            ctx.stroke();
+            ctx.setLineDash([]); // վերականգնել
+
+            // Նկարում ենք Ֆրենելի էլիպսը
+            ctx.beginPath();
+            ctx.strokeStyle = '#06b6d4';
+            ctx.lineWidth = 2;
+            // Օգտագործում ենք ellipse մետոդը
+            let controlX = startX + (endX - startX) * (d1 / (d1 + d2));
+            ctx.ellipse((startX + endX) / 2, centerY, (endX - startX) / 2, maxRadiusPx, 0, 0, 2 * Math.PI);
+            ctx.fillStyle = 'rgba(6, 182, 212, 0.05)';
+            ctx.fill();
+            ctx.stroke();
+
+            // Նկարում ենք 60% անվտանգության գիծը ներսում
+            ctx.beginPath();
+            ctx.strokeStyle = 'rgba(245, 158, 11, 0.5)';
+            ctx.ellipse((startX + endX) / 2, centerY, (endX - startX) / 2, maxRadiusPx * 0.6, 0, 0, 2 * Math.PI);
+            ctx.stroke();
+
+            // Խոչընդոտի դիրքը x-ի առանցքով
+            let obsX = controlX;
+            // Հաշվենք խոչընդոտի բարձրության պիքսելային չափը վիզուալիզացիայի համար
+            let obsHeightPx = Math.min((h_obs / r1) * maxRadiusPx, maxRadiusPx + 15);
+
+            // Նկարում ենք խոչընդոտը (սուր սյուն ներքևից կամ վերևից)
+            ctx.beginPath();
+            ctx.strokeStyle = h_obs <= (0.6 * r1) ? '#22c55e' : (h_obs <= r1 ? '#f59e0b' : '#ef4444');
+            ctx.lineWidth = 4;
+            ctx.moveTo(obsX, centerY);
+            ctx.lineTo(obsX, centerY - obsHeightPx);
+            ctx.stroke();
+
+            // Աշտարակներ (Tx / Rx)
+            ctx.fillStyle = '#f8fafc';
+            ctx.fillRect(startX - 4, centerY - 25, 8, 25);
+            ctx.fillRect(endX - 4, centerY - 25, 8, 25);
+
+            ctx.fillStyle = '#94a3b8';
+            ctx.font = '12px sans-serif';
+            ctx.fillText('Tx', startX - 8, centerY + 15);
+            ctx.fillText('Rx', endX - 8, centerY + 15);
+        }
+
+        // Առաջնային հաշվարկ բացվելիս
+        window.onload = calculateAll;
+    </script>
+</body>
+</html>
