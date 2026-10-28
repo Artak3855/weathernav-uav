@@ -17,6 +17,12 @@ export class Sim {
     this.pos = { ...this.start }; this.battery = 100; this.elapsed = 0; this.dist = 0; this.gs = 0; this.status = 'idle'; this.hazards = [];
     this.original = this.route = [this.start, this.dest]; this.wp = 1; this.version++; this.note('Սիմուլյացիան վերակայվեց։');
   }
+  // Նոր մեթոդ՝ սկզբնակետը փոխելու համար
+  setStart(p: LatLon) {
+    this.start = p;
+    this.reset();
+    this.note('Սկզբնական կետը փոխվեց։');
+  }
   begin() { if (this.status === 'idle') { this.status = 'flying'; this.note('Թռիչքը սկսվեց։'); } else if (this.status === 'paused') { this.status = 'flying'; this.note('Շարունակվում է։'); } }
   pause() { if (this.status === 'flying') { this.status = 'paused'; this.note('Դադար։'); } }
   emergencyStop() { this.status = 'stopped'; this.gs = 0; this.note('ՎԹԱՐԱՅԻՆ ԿԱՆԳ՝ շարժումն անմիջապես դադարեցվեց։'); }
