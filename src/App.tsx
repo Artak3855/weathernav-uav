@@ -6,6 +6,8 @@ import { assess, Thresholds } from './hazard';
 import Scene3D from './Scene3D';
 
 interface Wx { temperature: number | null; humidity: number | null; windSpeed: number | null; windDirection: number | null; providerTime: string | null; fetchedAt: string }
+interface Snapshot { id: string; time: string; temp: number | null; humidity: number | null; windSpeed: number | null; windDir: number | null; dataUrl: string }
+
 const f = (v: number | null, d = 1) => (v === null ? '—' : v.toFixed(d));
 
 const t = {
@@ -40,9 +42,11 @@ const t = {
     reset: "Վերակայել",
     emergency: "Վթարային կանգ",
     map: "Քարտեզ",
-    mapDesc: "Մոխրագույն՝ սկզբնական երթուղի, կանաչ՝ վերահաշվարկված, կարմիր/նարնջագույն՝ վտանգավոր գոտի։",
+    mapDesc: "Ձախ քլիք՝ նպատակակետ, աջ քլիք՝ սկզբնակետ։ Մոխրագույն՝ սկզբնական երթուղի, կանաչ՝ վերահաշվարկված, կարմիր/նարնջագույն՝ վտանգավոր գոտի։",
     scene3D: "3D տեսարան",
     log: "Իրադարձությունների մատյան",
+    snapshots: "Չափումների նկարներ (Սնափշոթներ)",
+    stats: "Վիճակագրական համեմատություն",
     footer: "Սա կրթական սիմուլյատոր է և չի երաշխավորում իրական թռիչքի անվտանգություն։ Եղանակային տվյալները իրական API-ից են, իսկ դրոնի հեռաչափությունը և վտանգավոր գոտիները՝ սիմուլյացված։",
     refresh: "Թարմացում (վ)",
     scenarios: { A: "Ա. Նորմալ եղանակ", B: "Բ. Ուժեղ քամի", C: "Գ. Ամպրոպ/կարկուտ (սիմուլ.)", D: "Դ. API խափանում" },
@@ -80,9 +84,11 @@ const t = {
     reset: "Reset",
     emergency: "Emergency Stop",
     map: "Map",
-    mapDesc: "Gray: original route, green: replanned, red/orange: hazard zone.",
+    mapDesc: "Left click: destination, Right click: start point. Gray: original, green: replanned, red/orange: hazard.",
     scene3D: "3D View",
     log: "Event Log",
+    snapshots: "Measurement Snapshots",
+    stats: "Statistical Comparison",
     footer: "This is an educational simulator and does not guarantee real flight safety. Weather data comes from a live API, while drone telemetry and hazard zones are simulated.",
     refresh: "Refresh (s)",
     scenarios: { A: "A. Normal Weather", B: "B. Strong Wind", C: "C. Storm/Hail (sim.)", D: "D. API Outage" },
@@ -104,6 +110,11 @@ export default function App() {
   const [refreshSec, setRefreshSec] = useState(60);
   const [scale, setScale] = useState(20);
   const [th, setTh] = useState<Thresholds>({ maxWind: 15, cautionWind: 10, humidity: 85, staleSec: 300 });
+
+  // Snapshots & Comparison state
+  const [snapshots, setSnapshots] = useState<Snapshot[]>([]);
+  const [selectedSnapIds, setSelectedSnapIds] = useState<string[]>([]);
+
   const scaleRef = useRef(scale); scaleRef.current = scale;
   const scenRef = useRef(scenario); scenRef.current = scenario;
 
@@ -121,13 +132,51 @@ export default function App() {
 
   useEffect(() => {
     const pull = async () => {
-      if (demo) { setWx({ temperature: 18, humidity: 55, windSpeed: 6, windDirection: 270, providerTime: null, fetchedAt: new Date().toISOString() }); setApiErr(null); return; }
-      if (scenRef.current === 'D') { setApiErr(lang === 'hy' ? 'API խափանում (սիմուլյացիա)' : 'API Outage (simulation)'); return; }
-      try {
-        const r = await fetch(`/api/weather?latitude=${sim.start.lat}&longitude=${sim.start.lon}`); if (!r.ok) throw new Error('HTTP ' + r.status);
-        setWx(await r.json()); setApiErr(null);
-      } catch (e) { setApiErr((e as Error).message); sim.note(lang === 'hy' ? 'API սխալ. օգտագործվում է վերջին հաջող պատասխանը։' : 'API error. Using last successful response.'); }
+      let currentWx: Wx;
+      if (demo) {
+        currentWx = { temperature: 18, humidity: 55, windSpeed: 6, windDirection: 270, providerTime: null, fetchedAt: new Date().toISOString() };
+        setWx(currentWx); setApiErr(null);
+      } else if (scenRef.current === 'D') {
+        setApiErr(lang === 'hy' ? 'API խափանում (սիմուլյացիա)' : 'API Outage (simulation)');
+        return;
+      } else {
+        try {
+          const r = await fetch(`/api/weather?latitude=${sim.start.lat}&longitude=${sim.start.lon}`); if (!r.ok) throw new Error('HTTP ' + r.status);
+          currentWx = await r.json();
+          setWx(currentWx); setApiErr(null);
+        } catch (e) {
+          setApiErr((e as Error).message); sim.note(lang === 'hy' ? 'API սխալ. օգտագործվում է վերջին հաջող պատասխանը։' : 'API error. Using last successful response.');
+          return;
+        }
+      }
+
+      // Generate a canvas snapshot image of the weather data every 60s
+      const canvas = document.createElement('canvas');
+      canvas.width = 250; canvas.height = 140;
+      const ctx = canvas.getContext('2d');
+      if (ctx) {
+        ctx.fillStyle = '#1e293b'; ctx.fillRect(0, 0, canvas.width, canvas.height);
+        ctx.fillStyle = '#38bdf8'; ctx.font = 'bold 13px sans-serif';
+        ctx.fillText("Weather Snapshot", 12, 22);
+        ctx.fillStyle = '#cbd5e1'; ctx.font = '11px sans-serif';
+        ctx.fillText(`Time: ${new Date().toLocaleTimeString()}`, 12, 42);
+        ctx.fillText(`Temp: ${f(currentWx.temperature)} °C`, 12, 64);
+        ctx.fillText(`Humidity: ${f(currentWx.humidity, 0)} %`, 12, 84);
+        ctx.fillText(`Wind: ${f(currentWx.windSpeed)} m/s (${f(currentWx.windDirection, 0)}°)`, 12, 104);
+        const dataUrl = canvas.toDataURL();
+        const newSnap: Snapshot = {
+          id: Date.now().toString(),
+          time: new Date().toLocaleTimeString(),
+          temp: currentWx.temperature,
+          humidity: currentWx.humidity,
+          windSpeed: currentWx.windSpeed,
+          windDir: currentWx.windDirection,
+          dataUrl
+        };
+        setSnapshots(prev => [...prev.slice(-9), newSnap]);
+      }
     };
+
     pull(); const id = setInterval(pull, refreshSec * 1000); return () => clearInterval(id);
   }, [refreshSec, demo, scenario, sim, lang]);
 
@@ -141,8 +190,21 @@ export default function App() {
   useEffect(() => {
     const m = L.map(mapEl.current!).setView([40.24, 44.6], 10);
     L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', { attribution: '© OpenStreetMap' }).addTo(m);
-    layers.current = L.layerGroup().addTo(m); droneM.current = L.circleMarker([sim.pos.lat, sim.pos.lon], { radius: 7, color: '#22d3ee' }).addTo(m);
-    m.on('click', (e: L.LeafletMouseEvent) => { sim.dest = { lat: e.latlng.lat, lon: e.latlng.lng }; sim.reset(); });
+    layers.current = L.layerGroup().addTo(m); 
+    droneM.current = L.circleMarker([sim.pos.lat, sim.pos.lon], { radius: 7, color: '#22d3ee' }).addTo(m);
+    
+    // Left click: Dest
+    m.on('click', (e: L.LeafletMouseEvent) => { 
+      sim.dest = { lat: e.latlng.lat, lon: e.latlng.lng }; 
+      sim.reset(); 
+    });
+
+    // Right click: Start point
+    m.on('contextmenu', (e: L.LeafletMouseEvent) => {
+      e.originalEvent.preventDefault();
+      sim.setStart({ lat: e.latlng.lat, lon: e.latlng.lng });
+    });
+
     mapRef.current = m; return () => { m.remove(); };
   }, [sim]);
 
@@ -151,9 +213,19 @@ export default function App() {
     const ll = (p: { lat: number; lon: number }) => [p.lat, p.lon] as [number, number];
     L.polyline(sim.original.map(ll), { color: '#94a3b8', dashArray: '6' }).addTo(g);
     if (sim.route !== sim.original) L.polyline(sim.route.map(ll), { color: '#22c55e' }).addTo(g);
-    L.circleMarker(ll(sim.start), { radius: 5, color: '#fff' }).addTo(g); L.circleMarker(ll(sim.dest), { radius: 6, color: '#f472b6' }).addTo(g);
+    L.circleMarker(ll(sim.start), { radius: 5, color: '#fff' }).bindTooltip('Start').addTo(g); 
+    L.circleMarker(ll(sim.dest), { radius: 6, color: '#f472b6' }).bindTooltip('Destination').addTo(g);
     sim.hazards.forEach(z => L.circle(ll(z), { radius: z.radiusM, color: z.kind === 'storm' ? '#ef4444' : '#f59e0b' }).bindTooltip(z.label).addTo(g));
-  }, [sim.version, sim]);
+
+    // Draw Wind Vector arrow at start/drone position if wind data available
+    if (wx && wx.windSpeed !== null && wx.windDirection !== null) {
+      const p = sim.pos;
+      const rad = ((wx.windDirection + 180) % 360) * (Math.PI / 180);
+      const endLat = p.lat + (wx.windSpeed * 0.002) * Math.cos(rad);
+      const endLon = p.lon + (wx.windSpeed * 0.002) * Math.sin(rad);
+      L.polyline([[p.lat, p.lon], [endLat, endLon]], { color: '#38bdf8', weight: 3 }).bindTooltip(`Wind: ${wx.windSpeed} m/s`).addTo(g);
+    }
+  }, [sim.version, sim, wx]);
   droneM.current?.setLatLng([sim.pos.lat, sim.pos.lon]);
 
   const pickScenario = (id: ScenarioId) => { setScenario(id); sim.setScenario(id); };
@@ -161,6 +233,12 @@ export default function App() {
 
   const currentLevelText = dict.levels[risk.level];
   const currentStatusText = dict.statuses[sim.status];
+
+  const toggleSnapSelect = (id: string) => {
+    setSelectedSnapIds(prev => prev.includes(id) ? prev.filter(i => i !== id) : [...prev, id]);
+  };
+
+  const selectedSnaps = snapshots.filter(s => selectedSnapIds.includes(s.id));
 
   return (<>
     <header>
@@ -218,7 +296,49 @@ export default function App() {
       <section className="card"><h3>{dict.map} <span className="tag sim">{dict.simTag}</span></h3><div className="map" ref={mapEl} />
         <p className="note">{dict.mapDesc}</p></section>
       <section className="card"><h3>{dict.scene3D} <span className="tag sim">{dict.simTag}</span></h3><Scene3D sim={sim} /></section>
+      
+      {/* Event Log */}
       <section className="card"><h3>{dict.log}</h3><div className="log">{sim.log.map((l, i) => <div key={i}>{l.t} — {l.msg}</div>)}</div></section>
+      
+      {/* Snapshots Gallery Card */}
+      <section className="card">
+        <h3>{dict.snapshots}</h3>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', maxHeight: '220px', overflowY: 'auto' }}>
+          {snapshots.length === 0 ? <p style={{ color: '#94a3b8', fontSize: '12px' }}>Սպասվում է առաջին չափմանը...</p> :
+            snapshots.map(s => (
+              <div key={s.id} style={{ display: 'flex', alignItems: 'center', gap: '8px', background: '#0f172a', padding: '6px', borderRadius: '4px' }}>
+                <input type="checkbox" checked={selectedSnapIds.includes(s.id)} onChange={() => toggleSnapSelect(s.id)} />
+                <img src={s.dataUrl} alt="snapshot" style={{ width: '90px', height: '50px', borderRadius: '4px', objectFit: 'cover' }} />
+                <div style={{ fontSize: '11px' }}>
+                  <b>{s.time}</b><br/>
+                  Տաք՝ {f(s.temp)}°C | Քամի՝ {f(s.windSpeed)}մ/վ
+                </div>
+              </div>
+            ))
+          }
+        </div>
+      </section>
+
+      {/* Statistical Comparison Chart Card */}
+      <section className="card">
+        <h3>{dict.stats}</h3>
+        <p className="note">Ընտրեք սնափշոթները ձախ կողմից՝ ավտոմատ համեմատական գրաֆիկը տեսնելու համար։</p>
+        <div style={{ background: '#0f172a', padding: '10px', borderRadius: '6px', height: '180px', display: 'flex', alignItems: 'flex-end', gap: '15px', overflowX: 'auto', border: '1px solid #334155' }}>
+          {selectedSnaps.length === 0 ? <div style={{ margin: 'auto', color: '#64748b', fontSize: '12px' }}>Ընտրված չափումներ չկան</div> :
+            selectedSnaps.map((s, idx) => {
+              const maxW = 25; 
+              const hPercent = Math.min(100, ((s.windSpeed ?? 0) / maxW) * 100);
+              return (
+                <div key={s.id} style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', height: '100%', justifyContent: 'flex-end', flex: 1, minWidth: '40px' }}>
+                  <span style={{ fontSize: '10px', color: '#38bdf8', marginBottom: '4px' }}>{f(s.windSpeed)}m/s</span>
+                  <div style={{ width: '20px', height: `${hPercent}%`, background: '#3b82f6', borderRadius: '3px 3px 0 0' }} title={`Temp: ${s.temp}°C, Humidity: ${s.humidity}%`} />
+                  <span style={{ fontSize: '9px', color: '#94a3b8', marginTop: '4px' }}>#{idx + 1}</span>
+                </div>
+              );
+            })
+          }
+        </div>
+      </section>
     </div>
     <p className="note" style={{ padding: '0 16px 16px' }}>{dict.footer}</p>
   </>);
