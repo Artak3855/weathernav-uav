@@ -47,6 +47,10 @@ const t = {
     log: "Իրադարձությունների մատյան",
     snapshots: "Չափումների նկարներ (Սնափշոթներ)",
     stats: "Վիճակագրական համեմատություն",
+    metricSelect: "Ընտրել չափորոշիչ՝",
+    windMetric: "Քամու արագություն (մ/վ)",
+    tempMetric: "Ջերմաստիճան (°C)",
+    humMetric: "Խոնավություն (%)",
     footer: "Սա կրթական սիմուլյատոր է և չի երաշխավորում իրական թռիչքի անվտանգություն։ Եղանակային տվյալները իրական API-ից են, իսկ դրոնի հեռաչափությունը և վտանգավոր գոտիները՝ սիմուլյացված։",
     refresh: "Թարմացում (վ)",
     scenarios: { A: "Ա. Նորմալ եղանակ", B: "Բ. Ուժեղ քամի", C: "Գ. Ամպրոպ/կարկուտ (սիմուլ.)", D: "Դ. API խափանում" },
@@ -89,6 +93,10 @@ const t = {
     log: "Event Log",
     snapshots: "Measurement Snapshots",
     stats: "Statistical Comparison",
+    metricSelect: "Select Metric:",
+    windMetric: "Wind Speed (m/s)",
+    tempMetric: "Temperature (°C)",
+    humMetric: "Humidity (%)",
     footer: "This is an educational simulator and does not guarantee real flight safety. Weather data comes from a live API, while drone telemetry and hazard zones are simulated.",
     refresh: "Refresh (s)",
     scenarios: { A: "A. Normal Weather", B: "B. Strong Wind", C: "C. Storm/Hail (sim.)", D: "D. API Outage" },
@@ -114,6 +122,7 @@ export default function App() {
   // Snapshots & Comparison state
   const [snapshots, setSnapshots] = useState<Snapshot[]>([]);
   const [selectedSnapIds, setSelectedSnapIds] = useState<string[]>([]);
+  const [chartMetric, setChartMetric] = useState<'wind' | 'temp' | 'humidity'>('wind');
 
   const scaleRef = useRef(scale); scaleRef.current = scale;
   const scenRef = useRef(scenario); scenRef.current = scenario;
@@ -150,7 +159,6 @@ export default function App() {
         }
       }
 
-      // Generate a canvas snapshot image of the weather data every 60s
       const canvas = document.createElement('canvas');
       canvas.width = 250; canvas.height = 140;
       const ctx = canvas.getContext('2d');
@@ -193,13 +201,11 @@ export default function App() {
     layers.current = L.layerGroup().addTo(m); 
     droneM.current = L.circleMarker([sim.pos.lat, sim.pos.lon], { radius: 7, color: '#22d3ee' }).addTo(m);
     
-    // Left click: Dest
     m.on('click', (e: L.LeafletMouseEvent) => { 
       sim.dest = { lat: e.latlng.lat, lon: e.latlng.lng }; 
       sim.reset(); 
     });
 
-    // Right click: Start point
     m.on('contextmenu', (e: L.LeafletMouseEvent) => {
       e.originalEvent.preventDefault();
       sim.setStart({ lat: e.latlng.lat, lon: e.latlng.lng });
@@ -217,7 +223,6 @@ export default function App() {
     L.circleMarker(ll(sim.dest), { radius: 6, color: '#f472b6' }).bindTooltip('Destination').addTo(g);
     sim.hazards.forEach(z => L.circle(ll(z), { radius: z.radiusM, color: z.kind === 'storm' ? '#ef4444' : '#f59e0b' }).bindTooltip(z.label).addTo(g));
 
-    // Draw Wind Vector arrow at start/drone position if wind data available
     if (wx && wx.windSpeed !== null && wx.windDirection !== null) {
       const p = sim.pos;
       const rad = ((wx.windDirection + 180) % 360) * (Math.PI / 180);
@@ -322,16 +327,49 @@ export default function App() {
       {/* Statistical Comparison Chart Card */}
       <section className="card">
         <h3>{dict.stats}</h3>
-        <p className="note">Ընտրեք սնափշոթները ձախ կողմից՝ ավտոմատ համեմատական գրաֆիկը տեսնելու համար։</p>
-        <div style={{ background: '#0f172a', padding: '10px', borderRadius: '6px', height: '180px', display: 'flex', alignItems: 'flex-end', gap: '15px', overflowX: 'auto', border: '1px solid #334155' }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
+          <span style={{ fontSize: '11px', color: '#94a3b8' }}>{dict.metricSelect}</span>
+          <select 
+            value={chartMetric} 
+            onChange={e => setChartMetric(e.target.value as 'wind' | 'temp' | 'humidity')}
+            style={{ background: '#0f172a', color: '#f8fafc', border: '1px solid #334155', borderRadius: '4px', padding: '3px 6px', fontSize: '11px' }}
+          >
+            <option value="wind">{dict.windMetric}</option>
+            <option value="temp">{dict.tempMetric}</option>
+            <option value="humidity">{dict.humMetric}</option>
+          </select>
+        </div>
+        <div style={{ background: '#0f172a', padding: '10px', borderRadius: '6px', height: '150px', display: 'flex', alignItems: 'flex-end', gap: '15px', overflowX: 'auto', border: '1px solid #334155' }}>
           {selectedSnaps.length === 0 ? <div style={{ margin: 'auto', color: '#64748b', fontSize: '12px' }}>Ընտրված չափումներ չկան</div> :
             selectedSnaps.map((s, idx) => {
-              const maxW = 25; 
-              const hPercent = Math.min(100, ((s.windSpeed ?? 0) / maxW) * 100);
+              let val = 0;
+              let maxVal = 25;
+              let color = '#3b82f6';
+              let unit = '';
+
+              if (chartMetric === 'wind') {
+                val = s.windSpeed ?? 0;
+                maxVal = 30; // m/s max scale
+                color = '#3b82f6';
+                unit = 'm/s';
+              } else if (chartMetric === 'temp') {
+                val = s.temp ?? 0;
+                maxVal = 50; // °C max scale
+                color = '#f59e0b';
+                unit = '°C';
+              } else {
+                val = s.humidity ?? 0;
+                maxVal = 100; // % max scale
+                color = '#10b981';
+                unit = '%';
+              }
+
+              const hPercent = Math.min(100, Math.max(5, (val / maxVal) * 100));
+
               return (
                 <div key={s.id} style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', height: '100%', justifyContent: 'flex-end', flex: 1, minWidth: '40px' }}>
-                  <span style={{ fontSize: '10px', color: '#38bdf8', marginBottom: '4px' }}>{f(s.windSpeed)}m/s</span>
-                  <div style={{ width: '20px', height: `${hPercent}%`, background: '#3b82f6', borderRadius: '3px 3px 0 0' }} title={`Temp: ${s.temp}°C, Humidity: ${s.humidity}%`} />
+                  <span style={{ fontSize: '10px', color: color, marginBottom: '4px' }}>{f(val)}{unit}</span>
+                  <div style={{ width: '20px', height: `${hPercent}%`, background: color, borderRadius: '3px 3px 0 0' }} title={`Time: ${s.time}, Value: ${val}${unit}`} />
                   <span style={{ fontSize: '9px', color: '#94a3b8', marginTop: '4px' }}>#{idx + 1}</span>
                 </div>
               );
