@@ -1,4 +1,4 @@
-import { LatLon, bearing, crabHeading, groundVelocity, haversine, moveBy } from './shared/geo';
+import { LatLon, bearing, crabHeading, groundVelocity, haversine, moveBy } from './geo';
 import { Circle, insideAny, planRoute, routeHits } from './shared/planner';
 export type Status = 'idle' | 'flying' | 'paused' | 'stopped' | 'hold' | 'arrived';
 export type ScenarioId = 'A' | 'B' | 'C' | 'D';
