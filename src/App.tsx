@@ -115,15 +115,24 @@ export default function App() {
   const [apiErr, setApiErr] = useState<string | null>(null);
   const [scenario, setScenario] = useState<ScenarioId>('A');
   const [demo, setDemo] = useState(false);
-  const [refreshSec, setRefreshSec] = useState(60);
-  const [scale, setScale] = useState(20);
+
+  // Editable states with text support to let users type freely
+  const [refreshSec, setRefreshSec] = useState<string>("60");
+  const [scale, setScale] = useState<string>("20");
   const [th, setTh] = useState<Thresholds>({ maxWind: 15, cautionWind: 10, humidity: 85, staleSec: 300 });
+  
+  const [maxWindInput, setMaxWindInput] = useState<string>("15");
+  const [cautionInput, setCautionInput] = useState<string>("10");
+  const [humidityInput, setHumidityInput] = useState<string>("85");
+
+  const [airspeedInput, setairspeedInput] = useState<string>("12");
+  const [reserveInput, setReserveInput] = useState<string>("20");
 
   const [snapshots, setSnapshots] = useState<Snapshot[]>([]);
   const [selectedSnapIds, setSelectedSnapIds] = useState<string[]>([]);
   const [chartMetric, setChartMetric] = useState<'wind' | 'temp' | 'humidity'>('wind');
 
-  const scaleRef = useRef(scale); scaleRef.current = scale;
+  const scaleRef = useRef(Number(scale) || 20); scaleRef.current = Number(scale) || 20;
   const scenRef = useRef(scenario); scenRef.current = scenario;
 
   useEffect(() => {
@@ -194,7 +203,8 @@ export default function App() {
       }
     };
 
-    pull(); const id = setInterval(pull, refreshSec * 1000); return () => clearInterval(id);
+    const secNum = Math.max(15, Number(refreshSec) || 60);
+    pull(); const id = setInterval(pull, secNum * 1000); return () => clearInterval(id);
   }, [refreshSec, demo, scenario, sim, lang]);
 
   const ageSec = wx ? (Date.now() - new Date(wx.fetchedAt).getTime()) / 1000 : null;
@@ -243,7 +253,6 @@ export default function App() {
   droneM.current?.setLatLng([sim.pos.lat, sim.pos.lon]);
 
   const pickScenario = (id: ScenarioId) => { setScenario(id); sim.setScenario(id); };
-  const num = (v: string, d: number) => (Number.isFinite(Number(v)) && v !== '' ? Number(v) : d);
 
   const currentLevelText = dict.levels[risk.level];
   const currentStatusText = dict.statuses[sim.status];
@@ -254,10 +263,20 @@ export default function App() {
 
   const selectedSnaps = snapshots.filter(s => selectedSnapIds.includes(s.id));
 
-  // Distinct weather-associated color palettes for each metric across snapshots
-  const tempColors = ['#f97316', '#ea580c', '#c2410c', '#9a3412', '#fb923c', '#fdba74']; // Ջերմաստիճան՝ տաք կարմիր/նարնջագույն երանգներ
-  const humidityColors = ['#06b6d4', '#0284c7', '#2563eb', '#1d4ed8', '#38bdf8', '#60a5fa']; // Խոնավություն՝ կապույտ/ջրային երանգներ
-  const windColors = ['#10b981', '#059669', '#047857', '#34d399', '#6ee7b7', '#34d399']; // Քամի՝ կանաչավուն/օդային երանգներ
+  const tempColors = ['#f97316', '#ea580c', '#c2410c', '#9a3412', '#fb923c', '#fdba74']; 
+  const humidityColors = ['#06b6d4', '#0284c7', '#2563eb', '#1d4ed8', '#38bdf8', '#60a5fa']; 
+  const windColors = ['#10b981', '#059669', '#047857', '#34d399', '#6ee7b7', '#34d399']; 
+
+  const inputStyle = {
+    background: '#0f172a',
+    color: '#38bdf8',
+    border: '1px solid #334155',
+    padding: '4px 8px',
+    borderRadius: '4px',
+    width: '75px',
+    fontWeight: 'bold',
+    textAlign: 'center' as const
+  };
 
   return (<>
     <header>
@@ -281,16 +300,30 @@ export default function App() {
           <tr><td>{lang === 'hy' ? 'Վերջին հաջող ստացում' : 'Last Fetch'}</td><td>{wx ? new Date(wx.fetchedAt).toLocaleTimeString() : '—'} {ageSec !== null && ageSec > th.staleSec && <b className="high">({lang === 'hy' ? 'հնացած' : 'stale'})</b>}</td></tr>
         </tbody></table>
         {apiErr && <p className="high">⚠ {apiErr}</p>}
-        <label>{dict.refresh}<input value={refreshSec} onChange={e => setRefreshSec(Math.max(15, num(e.target.value, 60)))} /></label>
+        <label>{dict.refresh}<input style={inputStyle} type="text" value={refreshSec} onChange={e => {
+          setRefreshSec(e.target.value);
+        }} /></label>
         <button className="alt" onClick={() => setDemo(!demo)}>{demo ? dict.disableDemo : dict.demo}</button>
       </section>
 
       {/* Risk Assessment Card */}
       <section className="card"><h3>{dict.risk} <span className="tag">{dict.riskSub}</span></h3>
         <b className={risk.level}>{currentLevelText}</b><ul>{risk.reasons.map((r, i) => <li key={i}>{r}</li>)}</ul>
-        <label>{dict.windLimit}<input value={th.maxWind} onChange={e => setTh({ ...th, maxWind: num(e.target.value, 15) })} /></label>
-        <label>{dict.cautionLimit}<input value={th.cautionWind} onChange={e => setTh({ ...th, cautionWind: num(e.target.value, 10) })} /></label>
-        <label>{dict.humidityLimit}<input value={th.humidity} onChange={e => setTh({ ...th, humidity: num(e.target.value, 85) })} /></label>
+        <label>{dict.windLimit}<input style={inputStyle} type="text" value={maxWindInput} onChange={e => {
+          setMaxWindInput(e.target.value);
+          const v = Number(e.target.value);
+          if (!isNaN(v)) setTh(prev => ({ ...prev, maxWind: v }));
+        }} /></label>
+        <label>{dict.cautionLimit}<input style={inputStyle} type="text" value={cautionInput} onChange={e => {
+          setCautionInput(e.target.value);
+          const v = Number(e.target.value);
+          if (!isNaN(v)) setTh(prev => ({ ...prev, cautionWind: v }));
+        }} /></label>
+        <label>{dict.humidityLimit}<input style={inputStyle} type="text" value={humidityInput} onChange={e => {
+          setHumidityInput(e.target.value);
+          const v = Number(e.target.value);
+          if (!isNaN(v)) setTh(prev => ({ ...prev, humidity: v }));
+        }} /></label>
         <p className="note">{dict.noteTemp}</p>
       </section>
 
@@ -303,9 +336,19 @@ export default function App() {
           <tr><td>{dict.dist}</td><td>{(sim.dist / 1000).toFixed(2)} {lang === 'hy' ? 'կմ' : 'km'}</td></tr><tr><td>{dict.time}</td><td>{Math.round(sim.elapsed)} {lang === 'hy' ? 'վ' : 's'}</td></tr>
           <tr><td>{dict.status}</td><td>{currentStatusText}</td></tr>
         </tbody></table>
-        <label>{dict.airspeed}<input value={sim.airspeed} onChange={e => { sim.airspeed = Math.max(1, num(e.target.value, 12)); }} /></label>
-        <label>{dict.reserve}<input value={sim.reserve} onChange={e => { sim.reserve = num(e.target.value, 20); }} /></label>
-        <label>{dict.timeScale}<input value={scale} onChange={e => setScale(Math.max(1, num(e.target.value, 20)))} /></label>
+        <label>{dict.airspeed}<input style={inputStyle} type="text" value={airspeedInput} onChange={e => {
+          setairspeedInput(e.target.value);
+          const v = Number(e.target.value);
+          if (!isNaN(v) && v > 0) sim.airspeed = v;
+        }} /></label>
+        <label>{dict.reserve}<input style={inputStyle} type="text" value={reserveInput} onChange={e => {
+          setReserveInput(e.target.value);
+          const v = Number(e.target.value);
+          if (!isNaN(v)) sim.reserve = v;
+        }} /></label>
+        <label>{dict.timeScale}<input style={inputStyle} type="text" value={scale} onChange={e => {
+          setScale(e.target.value);
+        }} /></label>
       </section>
 
       {/* Control Card */}
