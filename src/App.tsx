@@ -254,6 +254,10 @@ export default function App() {
 
   const selectedSnaps = snapshots.filter(s => selectedSnapIds.includes(s.id));
 
+  // Distinct weather-associated color palette for chart bars
+  // If multiple items are selected, we can also give each bar a distinct associative weather color (e.g. Red, Cyan, Yellow, Green, Purple)
+  const weatherColors = ['#f97316', '#3b82f6', '#10b981', '#a855f7', '#eab308', '#ec4899', '#06b6d4', '#84cc16'];
+
   return (<>
     <header>
       <b>{dict.title}</b>
@@ -360,32 +364,30 @@ export default function App() {
             selectedSnaps.map((s, idx) => {
               let val = 0;
               let maxVal = 25;
-              let color = '#3b82f6';
               let unit = '';
 
               if (chartMetric === 'wind') {
                 val = s.windSpeed ?? 0;
                 maxVal = 30;
-                color = '#3b82f6';
                 unit = 'm/s';
               } else if (chartMetric === 'temp') {
                 val = s.temp ?? 0;
                 maxVal = 50;
-                color = '#f59e0b';
                 unit = '°C';
               } else {
                 val = s.humidity ?? 0;
                 maxVal = 100;
-                color = '#10b981';
                 unit = '%';
               }
 
+              // Assign unique weather-associated color per bar or metric type
+              const barColor = chartMetric === 'temp' ? '#f97316' : chartMetric === 'humidity' ? '#10b981' : weatherColors[idx % weatherColors.length];
               const hPercent = Math.min(100, Math.max(5, (val / maxVal) * 100));
 
               return (
                 <div key={s.id} style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', height: '100%', justifyContent: 'flex-end', flex: 1, minWidth: '40px' }}>
-                  <span style={{ fontSize: '10px', color: color, marginBottom: '4px' }}>{f(val)}{unit}</span>
-                  <div style={{ width: '20px', height: `${hPercent}%`, background: color, borderRadius: '3px 3px 0 0' }} title={`Time: ${s.time}, Value: ${val}${unit}`} />
+                  <span style={{ fontSize: '10px', color: barColor, marginBottom: '4px' }}>{f(val)}{unit}</span>
+                  <div style={{ width: '20px', height: `${hPercent}%`, background: barColor, borderRadius: '3px 3px 0 0' }} title={`Time: ${s.time}, Value: ${val}${unit}`} />
                   <span style={{ fontSize: '9px', color: '#94a3b8', marginTop: '4px' }}>#{idx + 1}</span>
                 </div>
               );
