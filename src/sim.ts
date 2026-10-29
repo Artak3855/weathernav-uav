@@ -4,6 +4,23 @@ export type Status = 'idle' | 'flying' | 'paused' | 'stopped' | 'hold' | 'arrive
 export type ScenarioId = 'A' | 'B' | 'C' | 'D';
 export const STATUS_HY: Record<Status, string> = { idle: 'Սպասում', flying: 'Թռիչքում', paused: 'Դադար', stopped: 'Վթարային կանգ', hold: 'Անվտանգ սպասում (hold)', arrived: 'Ժամանել է' };
 
+// Բնակավայրերի ինտերֆեյսը և նմուշային բազան Հայաստանի շրջակայքում
+export interface Settlement {
+  name: string;
+  lat: number;
+  lon: number;
+  radiusM: number; // ազդեցության շառավիղը մետրերով
+}
+
+export const SETTLEMENTS: Settlement[] = [
+  { name: 'Աբովյան', lat: 40.2742, lon: 44.6247, radiusM: 4000 },
+  { name: 'Աշտարակ', lat: 40.2989, lon: 44.3597, radiusM: 4000 },
+  { name: 'Էջմիածին', lat: 40.1658, lon: 44.2947, radiusM: 4500 },
+  { name: 'Գառնի', lat: 40.1122, lon: 44.7303, radiusM: 3000 },
+  { name: 'Եղվարդ', lat: 40.3175, lon: 44.4686, radiusM: 3500 },
+  { name: 'Արզնի', lat: 40.2833, lon: 44.5833, radiusM: 2500 }
+];
+
 /** Simulated drone. Telemetry here is SIMULATED, never measured weather. Fixed 0.1 s step keeps it deterministic. */
 export class Sim {
   start: LatLon = { lat: 40.1792, lon: 44.4991 }; dest: LatLon = { lat: 40.3, lon: 44.7 };
@@ -11,6 +28,9 @@ export class Sim {
   status: Status = 'idle'; airspeed = 12; maxWind = 15; reserve = 20;
   wind = { speed: 3, from: 270 }; hazards: Circle[] = []; original: LatLon[] = []; route: LatLon[] = []; wp = 1; version = 0;
   log: { t: string; msg: string }[] = [];
+  
+  // Արդեն այցելած/արձանագրված բնակավայրերի ցանկը տվյալ թռիչքի ընթացքում
+  visitedSettlements: Set<string> = new Set();
   
   constructor() { this.reset(); }
   
@@ -22,6 +42,7 @@ export class Sim {
   reset() {
     this.pos = { ...this.start }; this.battery = 100; this.elapsed = 0; this.dist = 0; this.gs = 0; this.status = 'idle'; this.hazards = [];
     this.original = this.route = [this.start, this.dest]; this.wp = 1; this.version++; 
+    this.visitedSettlements.clear();
     this.note('Սիմուլյացիան վերակայվեց։');
   }
 
@@ -88,6 +109,15 @@ export class Sim {
     const v = groundVelocity(this.airspeed, hdg, w.speed, w.from); this.gs = Math.hypot(v.e, v.n);
     this.pos = moveBy(this.pos, v, dt); this.dist += this.gs * dt; this.elapsed += dt; this.battery -= dt * 0.05;
     
+    // Բնակավայրերի մոտեցման ստուգում (Proximity Check)
+    SETTLEMENTS.forEach(settlement => {
+      const distM = haversine(this.pos, { lat: settlement.lat, lon: settlement.lon }) * 1000;
+      if (distM <= settlement.radiusM && !this.visitedSettlements.has(settlement.name)) {
+        this.visitedSettlements.add(settlement.name);
+        this.note(`Անցում ${settlement.name} բնակավայրի գոտիով (Հեռ.` + Math.round(distM) + `մ): Գրանցվում է տեղային եղանակը։`);
+      }
+    });
+
     if (haversine(this.pos, target) <= Math.max(40, this.gs * dt * 1.5)) { 
       this.wp++; 
       if (this.wp >= this.route.length) { 
