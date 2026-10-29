@@ -254,9 +254,10 @@ export default function App() {
 
   const selectedSnaps = snapshots.filter(s => selectedSnapIds.includes(s.id));
 
-  // Distinct weather-associated color palette for chart bars
-  // If multiple items are selected, we can also give each bar a distinct associative weather color (e.g. Red, Cyan, Yellow, Green, Purple)
-  const weatherColors = ['#f97316', '#3b82f6', '#10b981', '#a855f7', '#eab308', '#ec4899', '#06b6d4', '#84cc16'];
+  // Distinct weather-associated color palettes for each metric across snapshots
+  const tempColors = ['#f97316', '#ea580c', '#c2410c', '#9a3412', '#fb923c', '#fdba74']; // Ջերմաստիճան՝ տաք կարմիր/նարնջագույն երանգներ
+  const humidityColors = ['#06b6d4', '#0284c7', '#2563eb', '#1d4ed8', '#38bdf8', '#60a5fa']; // Խոնավություն՝ կապույտ/ջրային երանգներ
+  const windColors = ['#10b981', '#059669', '#047857', '#34d399', '#6ee7b7', '#34d399']; // Քամի՝ կանաչավուն/օդային երանգներ
 
   return (<>
     <header>
@@ -365,23 +366,25 @@ export default function App() {
               let val = 0;
               let maxVal = 25;
               let unit = '';
+              let barColor = '#3b82f6';
 
               if (chartMetric === 'wind') {
                 val = s.windSpeed ?? 0;
                 maxVal = 30;
                 unit = 'm/s';
+                barColor = windColors[idx % windColors.length];
               } else if (chartMetric === 'temp') {
                 val = s.temp ?? 0;
                 maxVal = 50;
                 unit = '°C';
+                barColor = tempColors[idx % tempColors.length];
               } else {
                 val = s.humidity ?? 0;
                 maxVal = 100;
                 unit = '%';
+                barColor = humidityColors[idx % humidityColors.length];
               }
 
-              // Assign unique weather-associated color per bar or metric type
-              const barColor = chartMetric === 'temp' ? '#f97316' : chartMetric === 'humidity' ? '#10b981' : weatherColors[idx % weatherColors.length];
               const hPercent = Math.min(100, Math.max(5, (val / maxVal) * 100));
 
               return (
