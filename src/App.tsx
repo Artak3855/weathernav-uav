@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
 import { Sim, STATUS_HY, ScenarioId } from './sim';
-import { assess, Thresholds } from './hazard';
+import { assess, Thresholds, computeWetRefractivity } from './hazard';
 import Scene3D from './Scene3D';
 
 interface Wx { temperature: number | null; humidity: number | null; windSpeed: number | null; windDirection: number | null; providerTime: string | null; fetchedAt: string }
@@ -116,7 +116,6 @@ export default function App() {
   const [scenario, setScenario] = useState<ScenarioId>('A');
   const [demo, setDemo] = useState(false);
 
-  // Editable states with text support to let users type freely
   const [refreshSec, setRefreshSec] = useState<string>("60");
   const [scale, setScale] = useState<string>("20");
   const [th, setTh] = useState<Thresholds>({ maxWind: 15, cautionWind: 10, humidity: 85, staleSec: 300 });
@@ -209,6 +208,10 @@ export default function App() {
 
   const ageSec = wx ? (Date.now() - new Date(wx.fetchedAt).getTime()) / 1000 : null;
   const risk = assess({ windSpeed: wx?.windSpeed ?? null, humidity: wx?.humidity ?? null, temperature: wx?.temperature ?? null, ageSec }, th);
+  
+  // Հաշվարկում ենք Wet Refractivity ցուցանիշը ինտերֆեյսում ցույց տալու համար
+  const currentNw = (wx?.temperature !== null && wx?.humidity !== null) ? computeWetRefractivity(wx.temperature, wx.humidity) : null;
+
   sim.maxWind = th.maxWind;
   if (wx && wx.windSpeed !== null && wx.windDirection !== null && risk.level !== 'unknown') sim.wind = { speed: wx.windSpeed, from: wx.windDirection };
   if (scenario === 'D' && sim.status === 'flying') sim.hold(lang === 'hy' ? 'եղանակային տվյալները անհասանելի են։' : 'weather data unavailable.');
@@ -294,6 +297,7 @@ export default function App() {
         <table><tbody>
           <tr><td title={lang === 'hy' ? 'Ջերմաստիճան 2 մ բարձրության վրա' : 'Temperature at 2m'}>{lang === 'hy' ? 'Ջերմաստիճան' : 'Temperature'}</td><td>{f(wx?.temperature ?? null)} °C</td></tr>
           <tr><td>{lang === 'hy' ? 'Հարաբերական խոնավություն' : 'Humidity'}</td><td>{f(wx?.humidity ?? null, 0)} %</td></tr>
+          <tr><td title="Wet Refractivity (IEEE Model)"><b>Խոնավ բեկում ($N_w$)</b></td><td><b style={{ color: '#38bdf8' }}>{currentNw !== null ? currentNw.toFixed(1) + ' ppm' : '—'}</b></td></tr>
           <tr><td title={lang === 'hy' ? '10 մ բարձրության վրա' : 'At 10m'}>{lang === 'hy' ? 'Քամու արագություն' : 'Wind Speed'}</td><td>{f(wx?.windSpeed ?? null)} {lang === 'hy' ? 'մ/վ' : 'm/s'}</td></tr>
           <tr><td title={lang === 'hy' ? 'Այն կողմը, որտեղից է փչում քամին' : 'Wind direction'}>{lang === 'hy' ? 'Քամու ուղղություն (որտեղից)' : 'Wind Direction'}</td><td>{f(wx?.windDirection ?? null, 0)}°</td></tr>
           <tr><td>{lang === 'hy' ? 'Դիտարկման/կանխատեսման ժամ' : 'Provider Time'}</td><td>{wx?.providerTime ?? '—'}</td></tr>
