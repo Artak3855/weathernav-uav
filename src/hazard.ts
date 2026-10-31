@@ -1,4 +1,5 @@
 export type Level = 'normal' | 'caution' | 'high' | 'unknown';
+export type Level = 'normal' | 'caution' | 'high' | 'unknown';
 export interface Thresholds { maxWind: number; cautionWind: number; humidity: number; staleSec: number }
 export interface WxInput { windSpeed: number | null; humidity: number | null; temperature: number | null; ageSec: number | null }
 export const LEVEL_HY: Record<Level, string> = { normal: 'Նորմալ', caution: 'Զգուշացում', high: 'Բարձր ռիսկ', unknown: 'Անհայտ / անբավարար տվյալներ' };
@@ -7,7 +8,7 @@ export const LEVEL_HY: Record<Level, string> = { normal: 'Նորմալ', caution
  * Հաշվարկում է խոնավ բեկման ցուցիչը (Wet Refractivity - Nw) 
  * հիմնված ՄՌՏ/GNSS օդերևութաբանական մոդելների վրա (IEEE հոդվածների հիման վրա):
  */
-function computeWetRefractivity(tempC: number, humidityPercent: number): number {
+export function computeWetRefractivity(tempC: number, humidityPercent: number): number {
   const T = tempC + 273.15; // Ջերմաստիճանը Կելվիններով
   const es = 6.112 * Math.exp((17.67 * tempC) / (tempC + 243.5));
   const e = (humidityPercent / 100) * es;
@@ -27,8 +28,6 @@ export function assess(w: WxInput, t: Thresholds): { level: Level; reasons: stri
   
   if (w.humidity !== null && w.humidity > t.humidity) { 
     score += 1; 
-    
-    // Եթե ունենք նաև ջերմաստիճան, հաշվարկում ենք գիտական Wet Refractivity ցուցանիշը
     if (w.temperature !== null) {
       const nw = computeWetRefractivity(w.temperature, w.humidity);
       reasons.push(`Խոնավությունը ${w.humidity}% բարձր է (${t.humidity}%) | Խոնավ բեկման ցուցիչ (Nw): ${nw.toFixed(1)} ppm։ Սա միայն «կարկուտին/մառախուղին նպաստավոր պայմանների» ցուցիչ է։`);
